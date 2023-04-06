@@ -522,8 +522,8 @@ void solve(const Graph & g0, const Graph & g1, vector<gtype> &V, vector<vector<g
 {
     if(arguments.timeout && double(clock() - start) / CLOCKS_PER_SEC > arguments.timeout)
     {
-        cout <<"time out" <<endl;
-        exit(0);
+        //cout <<"time out" <<endl;
+        return;
     }
   //  if (abort_due_to_timeout)
    //     return;
@@ -535,7 +535,7 @@ void solve(const Graph & g0, const Graph & g1, vector<gtype> &V, vector<vector<g
         bestcount=cutbranches+1;
         bestnodes=nodes;
         bestfind=clock();
-        if (!arguments.quiet) cout << "Incumbent size: " << incumbent.size() << endl;
+        if (!arguments.quiet) cout << "Incumbent size: " << incumbent.size() << " iterations: " << nodes << endl;
     }
 
     unsigned int bound = current.size() + calc_bound(domains);//计算相连和不相连同构数的最大可能加上当前已经同构的点数
