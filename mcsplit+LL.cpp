@@ -727,7 +727,7 @@ std::vector<int> page_rank(const Graph &g)
 {
     constexpr float damping_factor = 0.85f;
     constexpr float epsilon = 0.00001f;
-    std::vector<int> out_links = std::vector(g.n, 0);
+    std::vector<int> out_links = std::vector<int>(g.n, 0);
     for (int i = 0; i < g.n; i++) {
         for(int j = 0; j < g.n; j++) {
             if (g.adjmat[i][j]) {
@@ -735,7 +735,7 @@ std::vector<int> page_rank(const Graph &g)
             }
         }
     }
-    std::vector<std::vector<float>> stochastic_g = std::vector(g.n, std::vector(g.n, 0.0f));
+    std::vector<std::vector<float>> stochastic_g = std::vector<vector<float>>(g.n, std::vector<float>(g.n, 0.0f));
     for(int i = 0; i < g.n; i++) {
         if (!out_links[i]) {
             for (int j = 0; j < g.n; j++) {
@@ -753,7 +753,7 @@ std::vector<int> page_rank(const Graph &g)
     std::vector<int> result(g.n, 0);
     std::vector<float> ranks(g.n, 0);
     std::vector<float> p(g.n, 1.0 / g.n);
-    std::vector<std::vector<float>> transposed = std::vector(g.n, std::vector(g.n, 0.0f));
+    std::vector<std::vector<float>> transposed = std::vector<vector<float>>(g.n, std::vector<float>(g.n, 0.0f));
     for (int i = 0; i < g.n; i++) {
         for (int j = 0; j < g.n; j++) {
             transposed[i][j] = stochastic_g[j][i];
