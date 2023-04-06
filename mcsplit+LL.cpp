@@ -55,6 +55,11 @@ static void fail(std::string msg) {
 
 enum Heuristic { min_max, min_product };
 
+enum class SortHeuristic{
+    DEGREE,
+    PAGE_RANK
+};
+
 /*******************************************************************************
                              Command-line arguments
 *******************************************************************************/
@@ -72,6 +77,7 @@ static struct argp_option options[] = {
     {"vertex-labelled-only", 'x', 0, 0, "Use vertex labels, but not edge labels"},
     {"big-first", 'b', 0, 0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
     {"timeout", 't', "timeout", 0, "Specify a timeout (seconds)"},
+    {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank)"},
     { 0 }
 };
 
@@ -86,6 +92,7 @@ static struct {
     bool vertex_labelled;
     bool big_first;
     Heuristic heuristic;
+    SortHeuristic sort_heuristic = SortHeuristic::DEGREE;
     char *filename1;
     char *filename2;
     int timeout;
@@ -154,6 +161,14 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
             break;
         case 't':
             arguments.timeout = std::stoi(arg);
+            break;
+        case 's':
+            if (std::string(arg) == "degree")
+                arguments.sort_heuristic = SortHeuristic::DEGREE;
+            else if (std::string(arg) == "pagerank")
+                arguments.sort_heuristic = SortHeuristic::PAGE_RANK;
+            else
+                fail("Unknown sort heuristic (try degree, pagerank)");
             break;
         case ARGP_KEY_ARG:
             if (arguments.arg_num == 0) {
@@ -706,6 +721,72 @@ void pack_leaves(Graph &g) {
     }
 }
 
+// Codice ripreso da "Purtroppo" su GitHub. Ciao "Purtroppo", ora fai parte della ricerca
+// https://github.com/purtroppo/PageRank
+std::vector<int> page_rank(const Graph &g)
+{
+    constexpr float damping_factor = 0.85f;
+    constexpr float epsilon = 0.00001f;
+    std::vector<int> out_links = std::vector(g.n, 0);
+    for (int i = 0; i < g.n; i++) {
+        for(int j = 0; j < g.n; j++) {
+            if (g.adjmat[i][j]) {
+                out_links[i]++;
+            }
+        }
+    }
+    std::vector<std::vector<float>> stochastic_g = std::vector(g.n, std::vector(g.n, 0.0f));
+    for(int i = 0; i < g.n; i++) {
+        if (!out_links[i]) {
+            for (int j = 0; j < g.n; j++) {
+                stochastic_g[i][j] = 1.0 / (float)g.n;
+            }
+        }
+        else {
+            for (int j = 0; j < g.n; j++) {
+                if (g.adjmat[i][j]) {
+                    stochastic_g[i][j] = g.adjmat[i][j] / (float)out_links[i];
+                }
+            }
+        }
+    }
+    std::vector<int> result(g.n, 0);
+    std::vector<float> ranks(g.n, 0);
+    std::vector<float> p(g.n, 1.0 / g.n);
+    std::vector<std::vector<float>> transposed = std::vector(g.n, std::vector(g.n, 0.0f));
+    for (int i = 0; i < g.n; i++) {
+        for (int j = 0; j < g.n; j++) {
+            transposed[i][j] = stochastic_g[j][i];
+        }
+    }
+    while (true) {
+        std::fill(ranks.begin(), ranks.end(), 0);
+        for (int i = 0; i < g.n; i++) {
+            for (int j = 0; j < g.n; j++) {
+                ranks[i] = ranks[i] + transposed[i][j] * p[j];
+            }
+        }
+        for (int i = 0; i < g.n; i++) {
+            ranks[i] = damping_factor * ranks[i] + (1.0 - damping_factor) / (float)g.n;
+        }
+        float error = 0.0f;
+        for (int i = 0; i < g.n; i++) {
+            error += std::abs(ranks[i] - p[i]);
+        }
+        if (error < epsilon) {
+            break;
+        }
+
+        for (int i = 0; i < g.n; i++) {
+            p[i] = ranks[i];
+        }
+    }
+    for(int i = 0; i < ranks.size(); i++) {
+        result[i] = ranks[i] / epsilon;
+    }
+    return result;
+}
+
 int main(int argc, char** argv) {
     set_default_arguments();
     argp_parse(&argp, argc, argv, 0, 0, 0);
@@ -744,8 +825,15 @@ int main(int argc, char** argv) {
   //  auto start = std::chrono::steady_clock::now();
     start=clock();
 
-    vector<int> g0_deg = calculate_degrees(g0);
-    vector<int> g1_deg = calculate_degrees(g1);
+    // static sort order
+    std::vector<int> g0_deg, g1_deg;
+    if (arguments.sort_heuristic == SortHeuristic::DEGREE) {
+        g0_deg = calculate_degrees(g0);
+        g1_deg = calculate_degrees(g1);
+    } else if (arguments.sort_heuristic == SortHeuristic::PAGE_RANK) {
+        g0_deg = page_rank(g0);
+        g1_deg = page_rank(g1);
+    }
 
     // As implemented here, g1_dense and g0_dense are false for all instances
     // in the Experimental Evaluation section of the paper.  Thus,
